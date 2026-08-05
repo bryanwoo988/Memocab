@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Memocab</title>
-<meta name="theme-color" content="#152A33">
+<meta name="theme-color" content="#152A33" id="meta-theme">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Memocab">
@@ -14,55 +14,77 @@
 <style>
 :root{
   --ink:#152A33;--ink-soft:#40575F;--paper:#EDEFE9;--slip:#FBFBF7;--rule:#C9D0C9;
-  --pen:#1F4FA3;--stamp:#8F9C93;--flag:#E4C55A;--danger:#A8402F;
+  --pen:#1F4FA3;--stamp:#8F9C93;--flag:#E4C55A;--flag-ink:#3A3005;--danger:#A8402F;
+  --spine:#E3E7E0;
+  --bar-bg:#152A33;--bar-fg:#EDEFE9;--bar-dim:#93A5A9;--bar-line:#3D5560;
+  --btn-bg:#152A33;--btn-fg:#FBFBF7;
+  --toast-bg:#152A33;--toast-fg:#FBFBF7;
   --serif:Georgia,"Songti SC","Noto Serif CJK SC",serif;
   --sans:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
+html[data-theme="dark"]{
+  --ink:#E7EBE6;--ink-soft:#A9B8BA;--paper:#111C22;--slip:#18262E;--rule:#2E4049;
+  --pen:#82AAE8;--stamp:#71858C;--flag:#C9A93F;--flag-ink:#221B02;--danger:#E0785F;
+  --spine:#1F2E36;
+  --bar-bg:#0B141A;--bar-fg:#E7EBE6;--bar-dim:#7E9096;--bar-line:#2C3E47;
+  --btn-bg:#2C4450;--btn-fg:#EDF1EE;
+  --toast-bg:#25373F;--toast-fg:#E7EBE6;
+}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
-body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+html{background:var(--paper);color-scheme:light}
+html[data-theme="dark"]{color-scheme:dark}
+#bg{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--paper);z-index:-1;pointer-events:none}
+#app{position:relative;z-index:0;background:var(--paper);min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+.sheet{background:var(--paper);flex:1 0 auto}
 button{font-family:inherit;font-size:inherit;cursor:pointer}
 :focus-visible{outline:2px solid var(--pen);outline-offset:2px}
 
-header{background:var(--ink);color:var(--paper);padding:14px 18px 0;padding-top:calc(14px + env(safe-area-inset-top,0px))}
+header{background:var(--bar-bg);color:var(--bar-fg);padding:14px 18px 0;padding-top:calc(14px + env(safe-area-inset-top,0px))}
 .wrap{max-width:760px;margin:0 auto}
-.topbar{display:flex;align-items:center;gap:12px}
+.topbar{display:flex;align-items:center;gap:8px}
 .brand{display:flex;align-items:baseline;gap:10px;min-width:0}
 .brand h1{margin:0;font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:-.01em}
-.brand span{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#93A5A9;white-space:nowrap}
-.lang{margin-left:auto;display:inline-flex;border:1px solid #3D5560;border-radius:2px;overflow:hidden;flex:none}
-.lang button{background:transparent;border:0;padding:5px 9px;color:#93A5A9;font-family:var(--mono);font-size:11px;letter-spacing:.1em}
-.lang button[aria-pressed="true"]{background:var(--paper);color:var(--ink)}
+.brand span{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--bar-dim);white-space:nowrap}
+.chips{margin-left:auto;display:flex;gap:8px;flex:none}
+.lang,.theme{display:inline-flex;border:1px solid var(--bar-line);border-radius:2px;overflow:hidden}
+.lang button,.theme button{background:transparent;border:0;padding:5px 9px;color:var(--bar-dim);font-family:var(--mono);font-size:11px;letter-spacing:.1em}
+.lang button[aria-pressed="true"]{background:var(--bar-fg);color:var(--bar-bg)}
+.theme button{font-size:13px;line-height:1;padding:6px 10px}
 
-.capture{background:var(--ink);padding:14px 18px 18px}
+.capture{background:var(--bar-bg);padding:14px 18px 18px}
 .capture .box{background:var(--slip);border-radius:3px;padding:14px;box-shadow:0 1px 0 rgba(0,0,0,.25)}
 .seg{display:inline-flex;border:1px solid var(--rule);border-radius:2px;overflow:hidden;margin-bottom:10px}
 .seg button{background:transparent;border:0;padding:5px 14px;color:var(--ink-soft);font-size:13px;letter-spacing:.04em}
-.seg button[aria-pressed="true"]{background:var(--ink);color:var(--slip)}
+.seg button[aria-pressed="true"]{background:var(--btn-bg);color:var(--btn-fg)}
 textarea,input[type=text]{width:100%;border:0;border-bottom:1px solid var(--rule);background:transparent;font-family:inherit;font-size:17px;color:var(--ink);padding:6px 0;resize:none}
 textarea:focus,input:focus{outline:none;border-bottom-color:var(--pen)}
 #field-text{font-family:var(--serif);font-size:20px}
 .field-label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--stamp);margin-top:12px}
 .capture .row{display:flex;gap:10px;align-items:center;margin-top:14px}
-.btn{background:var(--ink);color:var(--slip);border:0;border-radius:2px;padding:9px 20px;letter-spacing:.03em}
+.btn{background:var(--btn-bg);color:var(--btn-fg);border:0;border-radius:2px;padding:9px 20px;letter-spacing:.03em}
 .btn:disabled{opacity:.35;cursor:not-allowed}
 .hint{font-family:var(--mono);font-size:11px;color:var(--stamp)}
 
-.toolbar{max-width:760px;margin:0 auto;padding:16px 18px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.toolbar{background:var(--paper);max-width:760px;margin:0 auto;padding:16px 18px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .tabs{display:flex;gap:18px;margin-right:auto}
 .tab{background:none;border:0;padding:0 0 4px;color:var(--ink-soft);font-size:14px;letter-spacing:.03em;border-bottom:2px solid transparent}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--pen)}
 .tab b{font-family:var(--mono);font-weight:400;font-size:11px;color:var(--stamp);margin-left:5px}
-.tab b.hot{color:var(--slip);background:var(--danger);padding:1px 5px;border-radius:8px}
-.search{flex:1 1 160px;border:1px solid var(--rule);background:var(--slip);border-radius:2px;padding:6px 10px;font-size:14px}
-.export{display:flex;gap:8px}
-.ghost{background:transparent;border:1px solid var(--ink);color:var(--ink);border-radius:2px;padding:6px 12px;font-size:13px}
-.ghost:hover{background:var(--ink);color:var(--slip)}
+.tab b.hot{color:#FBFBF7;background:var(--danger);padding:1px 5px;border-radius:8px}
+.search{flex:1 1 160px;border:1px solid var(--rule);background:var(--slip);color:var(--ink);border-radius:2px;padding:6px 10px;font-size:14px}
+.export{display:flex;gap:8px;flex-wrap:wrap}
+.export .btn{padding:6px 18px;font-size:14px}
+.more-row{background:var(--paper);max-width:760px;margin:0 auto;padding:10px 18px 0;display:flex;gap:8px;flex-wrap:wrap}
+.more-row[hidden]{display:none}
+.ghost{background:transparent;border:1px solid var(--ink-soft);color:var(--ink);border-radius:2px;padding:6px 12px;font-size:13px}
+.ghost:hover{background:var(--btn-bg);color:var(--btn-fg);border-color:var(--btn-bg)}
 
-main{max-width:760px;margin:0 auto;padding:16px 18px 60px}
+main{background:var(--paper);max-width:760px;margin:0 auto;padding:16px 18px 60px}
 .slip{display:flex;background:var(--slip);border:1px solid var(--rule);border-radius:2px;margin-bottom:12px;overflow:hidden}
-.spine{flex:0 0 34px;background:#E3E7E0;border-right:1px solid var(--rule);display:flex;align-items:center;justify-content:center}
+.spine{flex:0 0 34px;background:var(--spine);border-right:1px solid var(--rule);display:flex;align-items:center;justify-content:center}
 .spine time{writing-mode:vertical-rl;transform:rotate(180deg);font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--stamp);padding:10px 0;white-space:nowrap}
 .body{flex:1;padding:12px 14px;min-width:0}
 .term{font-family:var(--serif);font-size:22px;line-height:1.3;word-break:break-word}
@@ -73,13 +95,13 @@ main{max-width:760px;margin:0 auto;padding:16px 18px 60px}
 .acts button{background:none;border:0;padding:0;color:var(--pen);font-size:12px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase}
 .acts button.del{color:var(--danger)}
 .sched{font-family:var(--mono);font-size:11px;color:var(--stamp);letter-spacing:.06em;margin-left:auto}
-.flag{display:inline-block;background:var(--flag);color:#3A3005;font-family:var(--mono);font-size:9px;letter-spacing:.14em;padding:2px 6px;border-radius:2px;margin-left:8px;vertical-align:3px}
+.flag{display:inline-block;background:var(--flag);color:var(--flag-ink);font-family:var(--mono);font-size:9px;letter-spacing:.14em;padding:2px 6px;border-radius:2px;margin-left:8px;vertical-align:3px}
 .edit textarea{font-size:15px;font-family:var(--sans)}
 .edit .row{display:flex;gap:12px;margin-top:10px;align-items:center;flex-wrap:wrap}
 .empty-state{border:1px dashed var(--rule);border-radius:2px;padding:34px 20px;text-align:center;color:var(--ink-soft)}
 .empty-state p{margin:0 0 6px;font-family:var(--serif);font-size:18px}
 .empty-state small{font-family:var(--mono);font-size:11px;color:var(--stamp);letter-spacing:.06em}
-mark{background:var(--flag);color:inherit}
+mark{background:var(--flag);color:var(--flag-ink)}
 
 .drill{background:var(--slip);border:1px solid var(--rule);border-radius:2px;padding:26px 20px 20px;text-align:center}
 .drill .count{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--stamp);text-transform:uppercase}
@@ -90,10 +112,17 @@ mark{background:var(--flag);color:inherit}
 .grades button{flex:1;border:1px solid var(--rule);background:transparent;border-radius:2px;padding:10px 4px;color:var(--ink);line-height:1.3;font-size:14px}
 .grades button:hover{border-color:var(--ink)}
 .grades small{display:block;font-family:var(--mono);font-size:10px;color:var(--stamp);margin-top:3px;letter-spacing:.06em}
-.reveal{width:100%;background:var(--ink);color:var(--slip);border:0;border-radius:2px;padding:11px;margin-top:6px}
+.reveal{width:100%;background:var(--btn-bg);color:var(--btn-fg);border:0;border-radius:2px;padding:11px;margin-top:6px}
 .drill-note{font-family:var(--mono);font-size:11px;color:var(--stamp);text-align:center;margin-top:14px;letter-spacing:.05em}
 
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--slip);padding:9px 16px;border-radius:2px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9;max-width:88vw;text-align:center}
+.panel{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);z-index:20;display:flex;align-items:center;justify-content:center;padding:18px}
+.panel[hidden]{display:none}
+.panel-box{background:var(--slip);border:1px solid var(--rule);border-radius:3px;padding:16px;width:100%;max-width:560px}
+.panel-name{font-family:var(--mono);font-size:13px;color:var(--ink)}
+.panel-hint{font-size:13px;color:var(--ink-soft);margin:6px 0 10px}
+.panel-box textarea{border:1px solid var(--rule);border-radius:2px;padding:8px;font-family:var(--mono);font-size:13px;background:var(--paper);color:var(--ink)}
+.panel-acts{display:flex;gap:10px;margin-top:12px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--toast-bg);color:var(--toast-fg);padding:9px 16px;border-radius:2px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9;max-width:88vw;text-align:center}
 .toast.on{opacity:1}
 @media (max-width:560px){
   .spine{flex-basis:26px}.spine time{font-size:9px}.term{font-size:20px}
@@ -106,13 +135,18 @@ mark{background:var(--flag);color:inherit}
 </head>
 <body>
 
+<div id="bg" aria-hidden="true"></div>
+<div id="app">
 <header>
   <div class="wrap topbar">
     <div class="brand"><h1>Memocab</h1><span id="tagline"></span></div>
-    <div class="lang" role="group" id="lang-group">
-      <button type="button" data-lang="zh">中文</button>
-      <button type="button" data-lang="ms">BM</button>
-      <button type="button" data-lang="en">EN</button>
+    <div class="chips">
+      <div class="theme"><button type="button" id="theme-btn">☾</button></div>
+      <div class="lang" role="group" id="lang-group">
+        <button type="button" data-lang="zh">中文</button>
+        <button type="button" data-lang="ms">BM</button>
+        <button type="button" data-lang="en">EN</button>
+      </div>
     </div>
   </div>
 </header>
@@ -136,6 +170,7 @@ mark{background:var(--flag);color:inherit}
   </div>
 </div>
 
+<div class="sheet">
 <div class="toolbar">
   <div class="tabs" role="tablist">
     <button class="tab" id="tab-review" role="tab" aria-selected="false"><span></span><b id="c-due">0</b></button>
@@ -148,16 +183,31 @@ mark{background:var(--flag);color:inherit}
     <button class="ghost" id="x-csv"></button>
   </div>
 </div>
-
 <main id="list"></main>
+</div>
+</div>
+<div class="panel" id="panel" hidden>
+  <div class="panel-box">
+    <div class="panel-name" id="panel-name"></div>
+    <div class="panel-hint" id="panel-hint"></div>
+    <textarea id="panel-text" readonly rows="8"></textarea>
+    <div class="panel-acts">
+      <button class="btn" id="panel-copy"></button>
+      <button class="ghost" id="panel-close"></button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
-const KEY='wordslip:entries';        // 不要改：改了会读不到旧资料
+const LEGACY_KEY='wordslip:entries';   // 旧版 localStorage 的资料，开机时会自动搬进 IndexedDB
+const MIRROR_KEY='memocab:mirror';     // 影子副本，IndexedDB 万一被清掉时用来救援
 const LANGKEY='memocab:lang';
+const THEMEKEY='memocab:theme';
+const DB_NAME='memocab', STORE='entries', DB_VER=1;
 const DAY=86400000;
 let entries=[], view='active', manualType=false, type='word', editing=null;
-let queue=[], revealed=false, lang='zh';
+let queue=[], revealed=false, lang='zh', theme='light', db=null;
 
 /* ---------- 文字表 ---------- */
 const I18N={
@@ -167,7 +217,10 @@ const I18N={
   lMeaning:'意思（可以不填，以后再补）',pMeaning:'解释、翻译、例句…',
   saveBtn:'记录',search:'搜索…',
   tabReview:'复习',tabActive:'在用',tabArchive:'归档',
-  xls:'导出 Excel',csv:'导出 CSV',
+  share:'导出',sysShare:'系统分享',more:'更多',shareTxt:'分享成文字',copy:'复制文字',
+  tCopied:'已复制，直接贴进 WhatsApp 就好',close:'关闭',
+  panelHint:'这里是预览框，不能直接存档。按复制，或长按选取。',
+  xls:'导出 Excel',csv:'导出 CSV',json:'备份',imp:'还原',
   edit:'编辑',archive:'归档',restore:'取回',del:'删除',
   save:'保存',cancel:'取消',reset:'重置复习进度',
   meaningLabel:'意思',noMeaning:'还没写意思 — 点「编辑」补上',archived:'已归档',
@@ -184,7 +237,12 @@ const I18N={
   tDeleted:'已删除',tReset:'复习进度已重置',tNext:g=>'下次复习：'+g,
   tExported:n=>'已导出 '+n,tBlocked:'浏览器阻止了下载',tEmptyText:'内容不能空着',
   tNothing:'还没有内容可以导出',tSaveFail:'保存失败，浏览器不允许存储',
+  tMigrated:n=>'已把 '+n+' 条旧资料搬进新储存',
+  tRecovered:n=>'从副本救回 '+n+' 条资料',
+  tImported:(a,u)=>'还原完成：新增 '+a+' 条，更新 '+u+' 条',
+  tBadFile:'档案格式不对，请选备份用的 .json',
   confirmDel:t=>'删除「'+t+'」？删掉就找不回来了。',
+  themeToDark:'切换到深色',themeToLight:'切换到浅色',
   head:['类型','内容','意思','记录时间','状态','归档时间','复习次数','下次复习','间隔(天)','熟练度'],
   vWord:'单词',vSentence:'句子',vArchived:'已归档',vActive:'在用'},
 
@@ -194,7 +252,10 @@ const I18N={
   lMeaning:'Maksud (boleh kosong, isi kemudian)',pMeaning:'Penerangan, terjemahan, contoh ayat…',
   saveBtn:'Simpan',search:'Cari…',
   tabReview:'Ulang kaji',tabActive:'Aktif',tabArchive:'Arkib',
-  xls:'Eksport Excel',csv:'Eksport CSV',
+  share:'Eksport',sysShare:'Kongsi (sistem)',more:'Lagi',shareTxt:'Kongsi sebagai teks',copy:'Salin teks',
+  tCopied:'Disalin — terus tampal ke WhatsApp',close:'Tutup',
+  panelHint:'Ini bingkai pratonton — tiada fail. Tekan Salin, atau tekan lama untuk pilih.',
+  xls:'Eksport Excel',csv:'Eksport CSV',json:'Sandaran',imp:'Pulih',
   edit:'Edit',archive:'Arkib',restore:'Pulih',del:'Padam',
   save:'Simpan',cancel:'Batal',reset:'Set semula ulang kaji',
   meaningLabel:'Maksud',noMeaning:'Belum ada maksud — tekan Edit untuk isi',archived:'Diarkib',
@@ -212,7 +273,12 @@ const I18N={
   tDeleted:'Dipadam',tReset:'Ulang kaji ditetapkan semula',tNext:g=>'Ulang kaji seterusnya: '+g,
   tExported:n=>'Dieksport '+n,tBlocked:'Pelayar menyekat muat turun',tEmptyText:'Kandungan tidak boleh kosong',
   tNothing:'Tiada apa untuk dieksport',tSaveFail:'Gagal simpan — pelayar tidak benarkan storan',
+  tMigrated:n=>n+' rekod lama dipindah ke storan baharu',
+  tRecovered:n=>n+' rekod dipulihkan daripada salinan',
+  tImported:(a,u)=>'Selesai: '+a+' baharu, '+u+' dikemas kini',
+  tBadFile:'Fail tidak sah — pilih fail sandaran .json',
   confirmDel:t=>'Padam "'+t+'"? Tidak boleh dipulihkan.',
+  themeToDark:'Tukar ke gelap',themeToLight:'Tukar ke cerah',
   head:['Jenis','Kandungan','Maksud','Masa direkod','Status','Masa arkib','Kali ulang kaji','Ulang kaji seterusnya','Selang (hari)','Kemudahan'],
   vWord:'Perkataan',vSentence:'Ayat',vArchived:'Diarkib',vActive:'Aktif'},
 
@@ -222,7 +288,10 @@ const I18N={
   lMeaning:'Meaning (optional, add it later)',pMeaning:'Definition, translation, example…',
   saveBtn:'Save',search:'Search…',
   tabReview:'Review',tabActive:'Active',tabArchive:'Archive',
-  xls:'Export Excel',csv:'Export CSV',
+  share:'Export',sysShare:'System share',more:'More',shareTxt:'Share as text',copy:'Copy text',
+  tCopied:'Copied — paste it straight into WhatsApp',close:'Close',
+  panelHint:'This is a preview frame, so no file is saved. Copy, or long-press to select.',
+  xls:'Export Excel',csv:'Export CSV',json:'Backup',imp:'Restore',
   edit:'Edit',archive:'Archive',restore:'Restore',del:'Delete',
   save:'Save',cancel:'Cancel',reset:'Reset review progress',
   meaningLabel:'Meaning',noMeaning:'No meaning yet — tap Edit to add one',archived:'Archived',
@@ -240,40 +309,118 @@ const I18N={
   tDeleted:'Deleted',tReset:'Review progress reset',tNext:g=>'Next review: '+g,
   tExported:n=>'Exported '+n,tBlocked:'The browser blocked the download',tEmptyText:'Content cannot be empty',
   tNothing:'Nothing to export yet',tSaveFail:'Could not save — storage is blocked',
+  tMigrated:n=>'Moved '+n+' older entries into the new store',
+  tRecovered:n=>'Recovered '+n+' entries from the mirror copy',
+  tImported:(a,u)=>'Restored: '+a+' added, '+u+' updated',
+  tBadFile:'Not a valid backup — pick the .json file',
   confirmDel:t=>'Delete "'+t+'"? This cannot be undone.',
+  themeToDark:'Switch to dark',themeToLight:'Switch to light',
   head:['Type','Content','Meaning','Recorded at','Status','Archived at','Reviews','Next review','Interval (days)','Ease'],
   vWord:'Word',vSentence:'Sentence',vArchived:'Archived',vActive:'Active'}
 };
 const T=()=>I18N[lang];
 
-/* ---------- 储存 ---------- */
+/* ---------- 设定值（语言、主题）用简单的 key-value ---------- */
 async function getItem(k){
-  if(window.storage){try{const r=await window.storage.get(k);return r?r.value:null}catch(e){return null}}
+  if(window.storage){try{const r=await window.storage.get(k);return r?r.value:null}catch(e){}}
   try{return localStorage.getItem(k)}catch(e){return null}
 }
 async function setItem(k,v){
   if(window.storage){try{await window.storage.set(k,v);return true}catch(e){}}
   try{localStorage.setItem(k,v);return true}catch(e){return false}
 }
-async function load(){
-  const v=await getItem(KEY);
-  let raw=[];
-  try{raw=v?JSON.parse(v):[]}catch(e){raw=[]}
-  return raw.map(normalize);
+
+/* ---------- IndexedDB：词条的正式储存 ---------- */
+function openDB(){
+  return new Promise((res,rej)=>{
+    if(!('indexedDB' in window)||!indexedDB)return rej(new Error('no indexeddb'));
+    let req;
+    try{req=indexedDB.open(DB_NAME,DB_VER)}catch(e){return rej(e)}
+    req.onupgradeneeded=()=>{
+      const d=req.result;
+      if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'});
+    };
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error||new Error('open failed'));
+    req.onblocked=()=>rej(new Error('blocked'));
+  });
 }
+function idbReadAll(){
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(STORE,'readonly');
+    const rq=tx.objectStore(STORE).getAll();
+    rq.onsuccess=()=>res(rq.result||[]);
+    rq.onerror=()=>rej(rq.error);
+  });
+}
+function idbWriteAll(list){
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(STORE,'readwrite');
+    const st=tx.objectStore(STORE);
+    st.clear();
+    list.forEach(e=>st.put(e));
+    tx.oncomplete=()=>res(true);
+    tx.onerror=()=>rej(tx.error);
+    tx.onabort=()=>rej(tx.error||new Error('aborted'));
+  });
+}
+
 async function save(){
-  const ok=await setItem(KEY,JSON.stringify(entries));
-  if(!ok)toast(T().tSaveFail);
+  let ok=false;
+  if(db){
+    try{await idbWriteAll(entries);ok=true}catch(e){db=null}
+  }
+  /* 影子副本：即使 IndexedDB 出事，资料还有第二份 */
+  const mirrored=await setItem(MIRROR_KEY,JSON.stringify(entries));
+  if(!ok&&!mirrored)toast(T().tSaveFail);
 }
+
+async function load(){
+  try{db=await openDB()}catch(e){db=null}
+  let fromDb=[];
+  if(db){try{fromDb=await idbReadAll()}catch(e){fromDb=[]}}
+
+  const readKey=async k=>{
+    const v=await getItem(k);
+    try{const a=v?JSON.parse(v):[];return Array.isArray(a)?a:[]}catch(e){return []}
+  };
+  const mirror=await readKey(MIRROR_KEY);
+  const legacy=await readKey(LEGACY_KEY);
+
+  /* 三个来源合并，同一个 id 取比较新的那一份 */
+  const map={};
+  let migrated=0,recovered=0;
+  const take=(list,tag)=>list.forEach(raw=>{
+    if(!raw||!raw.id||!raw.text)return;
+    const e=normalize(Object.assign({},raw));
+    const cur=map[e.id];
+    if(!cur){map[e.id]=e;if(tag==='legacy')migrated++;if(tag==='mirror')recovered++;}
+    else if(new Date(e.updated)>new Date(cur.updated))map[e.id]=e;
+  });
+  take(fromDb,'db');take(mirror,'mirror');take(legacy,'legacy');
+
+  const list=Object.values(map).sort((a,b)=>a.created<b.created?1:-1);
+  if(db&&(migrated||recovered||fromDb.length!==list.length)){
+    try{await idbWriteAll(list)}catch(e){}
+  }
+  if(migrated)setTimeout(()=>toast(T().tMigrated(migrated)),400);
+  else if(recovered)setTimeout(()=>toast(T().tRecovered(recovered)),400);
+  return list;
+}
+
 function normalize(e){
   if(e.reps===undefined)e.reps=0;
   if(e.ease===undefined)e.ease=2.5;
   if(e.interval===undefined)e.interval=0;
   if(e.reviewCount===undefined)e.reviewCount=0;
   if(e.lastReviewed===undefined)e.lastReviewed=null;
+  if(e.archived===undefined)e.archived=false;
+  if(!e.type)e.type='word';
   if(!e.due)e.due=e.created;
+  if(!e.updated)e.updated=e.lastReviewed||e.archivedAt||e.created;
   return e;
 }
+function touch(e){e.updated=new Date().toISOString();return e}
 
 /* ---------- 小工具 ---------- */
 const $=id=>document.getElementById(id);
@@ -283,7 +430,7 @@ function dateOnly(iso){const d=new Date(iso);return pad(d.getMonth()+1)+'-'+pad(
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function hl(s,q){const t=esc(s);if(!q)return t;return t.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark>$1</mark>')}
 let toastTimer;
-function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('on'),1900)}
+function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('on'),2400)}
 function autoGrow(el){el.style.height='auto';el.style.height=el.scrollHeight+'px'}
 function isDue(e){return !e.archived && new Date(e.due).getTime()<=Date.now()}
 
@@ -310,10 +457,14 @@ function applyLang(){
   $('tab-review').querySelector('span').textContent=t.tabReview;
   $('tab-active').querySelector('span').textContent=t.tabActive;
   $('tab-archive').querySelector('span').textContent=t.tabArchive;
+  $('panel-copy').textContent=t.copy;
+  $('panel-close').textContent=t.close;
+  $('panel-hint').textContent=t.panelHint;
   $('x-xls').textContent=t.xls;
   $('x-csv').textContent=t.csv;
   $('type-group').setAttribute('aria-label',t.lText);
   $('lang-group').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.lang===lang));
+  applyThemeLabel();
 }
 $('lang-group').addEventListener('click',async ev=>{
   const b=ev.target.closest('button[data-lang]');
@@ -321,6 +472,35 @@ $('lang-group').addEventListener('click',async ev=>{
   lang=b.dataset.lang;
   await setItem(LANGKEY,lang);
   applyLang();render();
+});
+
+/* ---------- 深色模式 ---------- */
+function applyThemeLabel(){
+  const t=T();
+  $('theme-btn').textContent=theme==='dark'?'☀':'☾';
+  $('theme-btn').setAttribute('aria-label',theme==='dark'?t.themeToLight:t.themeToDark);
+  $('theme-btn').setAttribute('title',theme==='dark'?t.themeToLight:t.themeToDark);
+}
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme',theme);
+  const bg=theme==='dark'?'#111C22':'#EDEFE9';
+  document.documentElement.style.setProperty('background',bg,'important');
+  document.body.style.setProperty('background',bg,'important');
+  ['bg','app'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.style.setProperty('background',bg,'important');
+  });
+  document.querySelectorAll('.sheet,.toolbar,main').forEach(el=>{
+    el.style.setProperty('background',bg,'important');
+  });
+  const m=$('meta-theme');
+  if(m)m.setAttribute('content',theme==='dark'?'#0B141A':'#152A33');
+  applyThemeLabel();
+}
+$('theme-btn').addEventListener('click',async()=>{
+  theme=theme==='dark'?'light':'dark';
+  await setItem(THEMEKEY,theme);
+  applyTheme();
 });
 
 /* ---------- SM-2 排程 (Wozniak 1987) ---------- */
@@ -367,7 +547,7 @@ async function add(){
   entries.unshift(normalize({
     id:Date.now()+'-'+Math.random().toString(36).slice(2,7),
     type:type,text:text,meaning:$('field-meaning').value.trim(),
-    created:now,archived:false,archivedAt:null,due:now
+    created:now,archived:false,archivedAt:null,due:now,updated:now
   }));
   await save();
   $('field-text').value='';$('field-meaning').value='';
@@ -489,15 +669,15 @@ $('list').addEventListener('click',async ev=>{
     const card=b.closest('.body');
     const v=card.querySelector('.e-text').value.trim();
     if(!v){toast(t.tEmptyText);return}
-    e.text=v;e.meaning=card.querySelector('.e-meaning').value.trim();
+    e.text=v;e.meaning=card.querySelector('.e-meaning').value.trim();touch(e);
     editing=null;await save();render();toast(t.tUpdated);return;
   }
   if(act==='reset'){
-    e.reps=0;e.ease=2.5;e.interval=0;e.reviewCount=0;e.lastReviewed=null;e.due=new Date().toISOString();
+    e.reps=0;e.ease=2.5;e.interval=0;e.reviewCount=0;e.lastReviewed=null;e.due=new Date().toISOString();touch(e);
     editing=null;await save();render();toast(t.tReset);return;
   }
-  if(act==='archive'){e.archived=true;e.archivedAt=new Date().toISOString();await save();render();toast(t.tArchived);return}
-  if(act==='restore'){e.archived=false;e.archivedAt=null;await save();render();toast(t.tRestored);return}
+  if(act==='archive'){e.archived=true;e.archivedAt=new Date().toISOString();touch(e);await save();render();toast(t.tArchived);return}
+  if(act==='restore'){e.archived=false;e.archivedAt=null;touch(e);await save();render();toast(t.tRestored);return}
   if(act==='delete'){
     if(!confirm(t.confirmDel(e.text.slice(0,40))))return;
     entries=entries.filter(x=>x.id!==e.id);await save();render();toast(t.tDeleted);
@@ -509,7 +689,7 @@ async function grade(q){
   if(!e)return;
   const ta=$('drill-meaning');
   if(ta&&ta.value.trim())e.meaning=ta.value.trim();
-  const days=schedule(e,q);
+  const days=schedule(e,q);touch(e);
   queue.shift();
   if(q<3)queue.push(e.id);
   revealed=false;
@@ -526,8 +706,44 @@ document.addEventListener('keydown',ev=>{
 });
 
 /* ---------- 导出 ---------- */
-function fname(ext){const d=new Date();return 'memocab-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'.'+ext}
+function isTopLevel(){
+  try{return window.top===window.self}catch(e){return false}
+}
+async function copyOut(text){
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+      toast(T().tCopied);return true;
+    }
+  }catch(e){}
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    const ok=document.execCommand('copy');
+    ta.remove();
+    if(ok){toast(T().tCopied);return true}
+  }catch(e){}
+  return false;
+}
+/* 嵌在别人的页面里时不做下载 — 那会跳出宿主 App 的确认框。
+   改成把内容摊开在自己的面板里，直接复制。 */
+function showTextPanel(content,name){
+  $('panel-name').textContent=name;
+  const ta=$('panel-text');
+  ta.value=content;
+  $('panel').hidden=false;
+  setTimeout(()=>{ta.focus();ta.setSelectionRange(0,ta.value.length)},50);
+}
+$('panel-close').onclick=()=>{$('panel').hidden=true};
+$('panel-copy').onclick=async()=>{
+  if(await copyOut($('panel-text').value))$('panel').hidden=true;
+};
+$('panel').addEventListener('click',ev=>{if(ev.target===$('panel'))$('panel').hidden=true});
+
+function fname(ext,tag){const d=new Date();return 'memocab'+(tag||'')+'-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'.'+ext}
 function download(content,name,mime){
+  if(!isTopLevel()){showTextPanel(content,name);return}
   try{
     const blob=new Blob([content],{type:mime});
     const url=URL.createObjectURL(blob);
@@ -537,9 +753,13 @@ function download(content,name,mime){
     toast(T().tExported(name));
   }catch(err){toast(T().tBlocked)}
 }
-function rowsForExport(){
+function toCSV(list){
+  const qt=v=>'"'+String(v).replace(/"/g,'""')+'"';
+  return '\uFEFF'+[T().head,...rowsForExport(list)].map(r=>r.map(qt).join(',')).join('\r\n');
+}
+function rowsForExport(list){
   const t=T();
-  return [...entries].sort((a,b)=>a.created<b.created?-1:1).map(e=>[
+  return [...(list||entries)].sort((a,b)=>a.created<b.created?-1:1).map(e=>[
     e.type==='word'?t.vWord:t.vSentence,
     e.text,e.meaning||'',stamp(e.created),
     e.archived?t.vArchived:t.vActive,
@@ -549,10 +769,9 @@ function rowsForExport(){
 }
 $('x-csv').onclick=()=>{
   if(!entries.length){toast(T().tNothing);return}
-  const qt=v=>'"'+String(v).replace(/"/g,'""')+'"';
-  const csv='\uFEFF'+[T().head,...rowsForExport()].map(r=>r.map(qt).join(',')).join('\r\n');
-  download(csv,fname('csv'),'text/csv;charset=utf-8');
+  download(toCSV(entries),fname('csv'),'text/csv;charset=utf-8');
 };
+
 $('x-xls').onclick=()=>{
   if(!entries.length){toast(T().tNothing);return}
   const cell=v=>typeof v==='number'
@@ -568,12 +787,23 @@ $('x-xls').onclick=()=>{
     head+body+'</Table></Worksheet></Workbook>';
   download(xml,fname('xls'),'application/vnd.ms-excel;charset=utf-8');
 };
-
 /* ---------- 启动 ---------- */
 (async()=>{
-  const saved=await getItem(LANGKEY);
-  lang=(saved&&I18N[saved])?saved:detectLang();
+  const savedTheme=await getItem(THEMEKEY);
+  theme=(savedTheme==='dark'||savedTheme==='light')
+    ? savedTheme
+    : (window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  applyTheme();
+
+  const savedLang=await getItem(LANGKEY);
+  lang=(savedLang&&I18N[savedLang])?savedLang:detectLang();
   applyLang();
+
+  /* 请浏览器不要自动清掉这个网站的资料 */
+  if(navigator.storage&&navigator.storage.persist){
+    try{await navigator.storage.persist()}catch(e){}
+  }
+
   entries=await load();
   syncTabs();render();
   const tick=()=>{$('clock').textContent=stamp(new Date().toISOString())};
