@@ -181,8 +181,10 @@ mark{background:var(--flag);color:var(--flag-ink)}
   <div class="export">
     <button class="ghost" id="x-xls"></button>
     <button class="ghost" id="x-csv"></button>
+    <button class="ghost" id="x-import"></button>
   </div>
 </div>
+<input type="file" id="file-input" accept=".csv,.json,text/csv,application/json" style="display:none">
 <main id="list"></main>
 </div>
 </div>
@@ -462,6 +464,7 @@ function applyLang(){
   $('panel-hint').textContent=t.panelHint;
   $('x-xls').textContent=t.xls;
   $('x-csv').textContent=t.csv;
+  $('x-import').textContent=t.imp;
   $('type-group').setAttribute('aria-label',t.lText);
   $('lang-group').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.lang===lang));
   applyThemeLabel();
@@ -743,7 +746,10 @@ $('panel').addEventListener('click',ev=>{if(ev.target===$('panel'))$('panel').hi
 
 function fname(ext,tag){const d=new Date();return 'memocab'+(tag||'')+'-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'.'+ext}
 function download(content,name,mime){
-  if(!isTopLevel()){showTextPanel(content,name);return}
+  if(!isTopLevel()){
+    if(typeof content!=='string'){toast(T().tBlocked);return}
+    showTextPanel(content,name);return;
+  }
   try{
     const blob=new Blob([content],{type:mime});
     const url=URL.createObjectURL(blob);
@@ -772,21 +778,229 @@ $('x-csv').onclick=()=>{
   download(toCSV(entries),fname('csv'),'text/csv;charset=utf-8');
 };
 
+/* ---------- 真正的 .xlsx ----------
+   iOS 版 Excel 不吃旧的 XML 试算表格式，所以这里自己打包一个标准的
+   OOXML 档（zip 不压缩，够用而且不需要外部程式库）。 */
+var CRC_TABLE=(function(){
+  const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){
+    let c=n;
+    for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+    t[n]=c>>>0;
+  }
+  return t;
+})();
+function crc32(buf){
+  let c=0xFFFFFFFF;
+  for(let i=0;i<buf.length;i++)c=CRC_TABLE[(c^buf[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0;
+}
+function utf8(str){return new TextEncoder().encode(str)}
+function zipStore(files){
+  const parts=[],central=[];
+  let offset=0;
+  files.forEach(f=>{
+    const name=utf8(f.name), data=f.data, crc=crc32(data);
+    const lh=new Uint8Array(30+name.length), lv=new DataView(lh.buffer);
+    lv.setUint32(0,0x04034b50,true);lv.setUint16(4,20,true);lv.setUint16(6,0x0800,true);
+    lv.setUint16(8,0,true);lv.setUint16(10,0,true);lv.setUint16(12,0x21,true);
+    lv.setUint32(14,crc,true);lv.setUint32(18,data.length,true);lv.setUint32(22,data.length,true);
+    lv.setUint16(26,name.length,true);lv.setUint16(28,0,true);
+    lh.set(name,30);
+    parts.push(lh,data);
+    const ch=new Uint8Array(46+name.length), cv=new DataView(ch.buffer);
+    cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);
+    cv.setUint16(8,0x0800,true);cv.setUint16(10,0,true);cv.setUint16(12,0,true);cv.setUint16(14,0x21,true);
+    cv.setUint32(16,crc,true);cv.setUint32(20,data.length,true);cv.setUint32(24,data.length,true);
+    cv.setUint16(28,name.length,true);cv.setUint16(30,0,true);cv.setUint16(32,0,true);
+    cv.setUint16(34,0,true);cv.setUint16(36,0,true);cv.setUint32(38,0,true);cv.setUint32(42,offset,true);
+    ch.set(name,46);
+    central.push(ch);
+    offset+=lh.length+data.length;
+  });
+  let csize=0;central.forEach(c=>csize+=c.length);
+  const eo=new Uint8Array(22), ev=new DataView(eo.buffer);
+  ev.setUint32(0,0x06054b50,true);ev.setUint16(4,0,true);ev.setUint16(6,0,true);
+  ev.setUint16(8,central.length,true);ev.setUint16(10,central.length,true);
+  ev.setUint32(12,csize,true);ev.setUint32(16,offset,true);ev.setUint16(20,0,true);
+  const all=parts.concat(central,[eo]);
+  let total=0;all.forEach(p=>total+=p.length);
+  const out=new Uint8Array(total);
+  let at=0;all.forEach(p=>{out.set(p,at);at+=p.length});
+  return out;
+}
+function colName(i){
+  let s='';i++;
+  while(i>0){const r=(i-1)%26;s=String.fromCharCode(65+r)+s;i=Math.floor((i-1)/26)}
+  return s;
+}
+function sheetXML(head,rows){
+  const cell=(v,r,c,style)=>{
+    const ref=colName(c)+r;
+    if(typeof v==='number'&&isFinite(v))
+      return '<c r="'+ref+'"'+style+'><v>'+v+'</v></c>';
+    return '<c r="'+ref+'" t="inlineStr"'+style+'><is><t xml:space="preserve">'+esc(v)+'</t></is></c>';
+  };
+  let xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+    '<cols><col min="1" max="1" width="8"/><col min="2" max="2" width="24"/><col min="3" max="3" width="34"/>'+
+    '<col min="4" max="4" width="18"/><col min="5" max="5" width="9"/><col min="6" max="6" width="18"/>'+
+    '<col min="7" max="7" width="10"/><col min="8" max="8" width="18"/><col min="9" max="9" width="10"/>'+
+    '<col min="10" max="10" width="9"/></cols><sheetData>';
+  xml+='<row r="1">'+head.map((v,i)=>cell(v,1,i,' s="1"')).join('')+'</row>';
+  rows.forEach((r,ri)=>{
+    xml+='<row r="'+(ri+2)+'">'+r.map((v,i)=>cell(v,ri+2,i,'')).join('')+'</row>';
+  });
+  return xml+'</sheetData></worksheet>';
+}
+function buildXLSX(head,rows){
+  const F=(name,str)=>({name:name,data:utf8(str)});
+  return zipStore([
+    F('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+      '<Default Extension="xml" ContentType="application/xml"/>'+
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
+      '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+
+      '</Types>'),
+    F('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'+
+      '</Relationships>'),
+    F('xl/workbook.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '+
+      'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'+
+      '<sheets><sheet name="Memocab" sheetId="1" r:id="rId1"/></sheets></workbook>'),
+    F('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'+
+      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'+
+      '</Relationships>'),
+    F('xl/styles.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+      '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font>'+
+      '<font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'+
+      '<fills count="2"><fill><patternFill patternType="none"/></fill>'+
+      '<fill><patternFill patternType="gray125"/></fill></fills>'+
+      '<borders count="1"><border/></borders>'+
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+      '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+
+      '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>'+
+      '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'+
+      '</styleSheet>'),
+    F('xl/worksheets/sheet1.xml',sheetXML(head,rows))
+  ]);
+}
 $('x-xls').onclick=()=>{
   if(!entries.length){toast(T().tNothing);return}
-  const cell=v=>typeof v==='number'
-    ? '<Cell><Data ss:Type="Number">'+v+'</Data></Cell>'
-    : '<Cell><Data ss:Type="String">'+esc(v)+'</Data></Cell>';
-  const head='<Row>'+T().head.map(h=>'<Cell ss:StyleID="h"><Data ss:Type="String">'+esc(h)+'</Data></Cell>').join('')+'</Row>';
-  const body=rowsForExport().map(r=>'<Row>'+r.map(cell).join('')+'</Row>').join('');
-  const xml='<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n'+
-    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'+
-    '<Styles><Style ss:ID="h"><Font ss:Bold="1"/><Interior ss:Color="#EDEFE9" ss:Pattern="Solid"/></Style></Styles>'+
-    '<Worksheet ss:Name="Memocab"><Table>'+
-    '<Column ss:Width="55"/><Column ss:Width="170"/><Column ss:Width="240"/><Column ss:Width="105"/><Column ss:Width="60"/><Column ss:Width="105"/><Column ss:Width="70"/><Column ss:Width="105"/><Column ss:Width="70"/><Column ss:Width="60"/>'+
-    head+body+'</Table></Worksheet></Workbook>';
-  download(xml,fname('xls'),'application/vnd.ms-excel;charset=utf-8');
+  try{
+    const bytes=buildXLSX(T().head,rowsForExport(entries));
+    download(bytes,fname('xlsx'),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  }catch(e){
+    console.error('[Memocab] xlsx',e&&e.message);
+    download(toCSV(entries),fname('csv'),'text/csv;charset=utf-8');
+  }
 };
+
+/* ---------- 还原：吃自己导出的 CSV 或 JSON ---------- */
+function parseCSV(text){
+  const s=text.replace(/^\uFEFF/,'');
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(q){
+      if(c==='"'){if(s[i+1]==='"'){cur+='"';i++}else q=false}
+      else cur+=c;
+    }else if(c==='"')q=true;
+    else if(c===','){row.push(cur);cur=''}
+    else if(c==='\n'){row.push(cur);cur='';rows.push(row);row=[]}
+    else if(c!=='\r')cur+=c;
+  }
+  if(cur.length||row.length){row.push(cur);rows.push(row)}
+  return rows.filter(r=>r.length>1);
+}
+function parseStamp(s){
+  const m=/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(s||'');
+  return m?new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]).toISOString():null;
+}
+function stableId(text,created){
+  let v=0;
+  for(let i=0;i<text.length;i++)v=(v*31+text.charCodeAt(i))>>>0;
+  return 'csv-'+String(created||'').replace(/[^0-9]/g,'').slice(0,12)+'-'+v.toString(36);
+}
+function anyLocale(field){return ['zh','ms','en'].map(k=>I18N[k][field])}
+function csvToEntries(rows){
+  const out=[];
+  rows.slice(1).forEach(c=>{
+    const text=(c[1]||'').trim();
+    if(!text)return;
+    const created=parseStamp(c[3])||new Date().toISOString();
+    const interval=parseInt(c[8],10)||0;
+    out.push({
+      id:stableId(text,created),
+      type:anyLocale('vSentence').indexOf((c[0]||'').trim())>=0?'sentence':'word',
+      text:text,meaning:(c[2]||'').trim(),created:created,
+      archived:anyLocale('vArchived').indexOf((c[4]||'').trim())>=0,
+      archivedAt:parseStamp(c[5]),
+      reviewCount:parseInt(c[6],10)||0,
+      due:parseStamp(c[7])||created,
+      interval:interval,
+      ease:parseFloat(c[9])||2.5,
+      reps:interval>=6?3:(interval>0?1:0),
+      lastReviewed:null,updated:created
+    });
+  });
+  return out;
+}
+async function mergeIn(list){
+  const map={};entries.forEach(e=>map[e.id]=e);
+  let added=0,updated=0;
+  list.forEach(raw=>{
+    if(!raw||!raw.id||!raw.text)return;
+    const inc=normalize(Object.assign({},raw));
+    const cur=map[inc.id];
+    if(!cur){entries.push(inc);map[inc.id]=inc;added++}
+    else if(new Date(inc.updated)>new Date(cur.updated)){Object.assign(cur,inc);updated++}
+  });
+  entries.sort((a,b)=>a.created<b.created?1:-1);
+  await save();render();
+  toast(T().tImported(added,updated));
+}
+$('x-import').onclick=()=>$('file-input').click();
+$('file-input').addEventListener('change',ev=>{
+  const f=ev.target.files&&ev.target.files[0];
+  if(!f)return;
+  const r=new FileReader();
+  r.onload=async()=>{
+    const txt=String(r.result);
+    try{
+      if(/\.csv$/i.test(f.name)||txt.indexOf(',')>-1&&txt.indexOf('{')!==0){
+        await mergeIn(csvToEntries(parseCSV(txt)));
+      }else{
+        const data=JSON.parse(txt);
+        const list=Array.isArray(data)?data:(data&&data.entries);
+        if(!Array.isArray(list))return toast(T().tBadFile);
+        await mergeIn(list);
+      }
+    }catch(e){toast(T().tBadFile)}
+    $('file-input').value='';
+  };
+  r.onerror=()=>{toast(T().tBadFile);$('file-input').value=''};
+  r.readAsText(f);
+});
+
+/* 自家的错误一律标上 [Memocab]，方便跟宿主页面的错误分开看。
+   浏览器对跨来源脚本只会给一句 "Script error."，那种不是这支程式丢的。 */
+window.addEventListener('error',ev=>{
+  if(ev&&ev.message&&ev.message!=='Script error.')
+    console.error('[Memocab]',ev.message,ev.filename||'',ev.lineno||'');
+});
+window.addEventListener('unhandledrejection',ev=>{
+  const r=ev&&ev.reason;
+  console.error('[Memocab] promise',(r&&r.message)||r);
+});
+
 /* ---------- 启动 ---------- */
 (async()=>{
   const savedTheme=await getItem(THEMEKEY);
@@ -808,8 +1022,8 @@ $('x-xls').onclick=()=>{
   syncTabs();render();
   const tick=()=>{$('clock').textContent=stamp(new Date().toISOString())};
   tick();setInterval(tick,20000);
-  if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  if(navigator.serviceWorker&&location.protocol.indexOf('http')===0){
+    try{navigator.serviceWorker.register('./sw.js').catch(()=>{})}catch(e){}
   }
 })();
 </script>
