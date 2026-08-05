@@ -1,7 +1,7 @@
 /* Memocab service worker
    HTML 走「先连网、失败才用快取」，所以推上 GitHub 之后重开一次就是新版；
    图示之类不会变的档案走「先快取」，开启速度快，离线也能用。 */
-const CACHE = 'memocab-v28';
+const CACHE = 'memocab-v29';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.svg',
                 './apple-touch-icon.png', './icon-192.png', './icon-512.png'];
 

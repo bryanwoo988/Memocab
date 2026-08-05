@@ -69,10 +69,11 @@ textarea:focus,input:focus{outline:none;border-bottom-color:var(--pen)}
 .hint{font-family:var(--mono);font-size:11px;color:var(--stamp)}
 
 .toolbar{background:var(--paper);max-width:760px;margin:0 auto;padding:16px 18px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.tabs{display:flex;gap:18px;margin-right:auto}
-.tab{background:none;border:0;padding:0 0 4px;color:var(--ink-soft);font-size:14px;letter-spacing:.03em;border-bottom:2px solid transparent}
+.tabs{display:flex;gap:13px;margin-right:auto;align-items:flex-end}
+.tab{background:none;border:0;padding:0 0 4px;color:var(--ink-soft);font-size:13.5px;letter-spacing:.02em;border-bottom:2px solid transparent;white-space:nowrap}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--pen)}
 .tab b{font-family:var(--mono);font-weight:400;font-size:11px;color:var(--stamp);margin-left:5px}
+#tab-export{color:var(--pen);border-bottom:1px dashed var(--pen)}
 .tab b.hot{color:#FBFBF7;background:var(--danger);padding:1px 5px;border-radius:8px}
 .search{flex:1 1 160px;border:1px solid var(--rule);background:var(--slip);color:var(--ink);border-radius:2px;padding:6px 10px;font-size:14px}
 .export{display:flex;gap:8px;flex-wrap:wrap}
@@ -149,6 +150,8 @@ mark{background:var(--flag);color:var(--flag-ink)}
 .pick-list{display:flex;flex-direction:column;gap:8px;margin:12px 0;max-height:46vh;overflow:auto}
 .pick-list button{text-align:left;background:transparent;border:1px solid var(--rule);border-radius:2px;padding:10px 12px;color:var(--ink);font-size:15px}
 .pick-list button.add{border-style:dashed;color:var(--pen)}
+.icons{display:flex;gap:4px;align-items:center;flex:none;margin-left:auto}
+.search{flex:1 1 100%}
 .gear{background:none;border:0;color:var(--ink-soft);font-size:18px;padding:0 6px 4px;line-height:1;flex:none}
 .gear:hover{color:var(--ink)}
 .gear[aria-pressed="true"]{color:var(--pen)}
@@ -210,19 +213,28 @@ mark{background:var(--flag);color:var(--flag-ink)}
     <button class="tab" id="tab-review" role="tab" aria-selected="false"><span></span><b id="c-due">0</b></button>
     <button class="tab" id="tab-active" role="tab" aria-selected="true"><span></span><b id="c-active">0</b></button>
     <button class="tab" id="tab-archive" role="tab" aria-selected="false"><span></span><b id="c-arch">0</b></button>
+    <button class="tab" id="tab-export"><span></span></button>
   </div>
-  <button class="gear" id="bin-btn">🗑</button>
-  <button class="gear" id="gear-btn">⚙</button>
+  <div class="icons">
+    <button class="gear" id="bin-btn">🗑</button>
+    <button class="gear" id="gear-btn">⚙</button>
+  </div>
   <input class="search" id="search" type="text">
-  <div class="export">
-    <button class="ghost" id="x-xls"></button>
-    <button class="ghost" id="x-csv"></button>
-    <button class="ghost" id="x-import"></button>
-  </div>
 </div>
 <input type="file" id="file-input" accept=".xlsx,.csv,.json" style="display:none">
 <main id="list"></main>
 </div>
+</div>
+<div class="panel" id="export-panel" hidden>
+  <div class="panel-box">
+    <div class="panel-name" id="export-title"></div>
+    <div class="pick-list">
+      <button id="x-xls"></button>
+      <button id="x-csv"></button>
+      <button id="x-import"></button>
+    </div>
+    <div class="panel-acts"><button class="ghost" id="export-close"></button></div>
+  </div>
 </div>
 <div class="panel" id="help-panel" hidden>
   <div class="panel-box">
@@ -308,6 +320,7 @@ const I18N={
     const hr=Math.round(ms/3600000);if(hr<24)return hr+' 小时';
     return Math.round(ms/86400000)+' 天';},
   speak:'朗读',explore:'Explore \u2197',move:'移动',
+  tabExport:'导出',exportTitle:'导出 / 还原',
   helpTitle:'怎么用',storeTitle:'资料存在哪里',
   storeHost:'宿主持久空间',storeLocal:'浏览器本机空间',storeCount:'条记录',
   storeNone:'这个环境没有可用的储存空间 \u2014 关掉页面资料就没了，请开自己的网址或主画面图示使用。',
@@ -380,6 +393,7 @@ const I18N={
     const hr=Math.round(ms/3600000);if(hr<24)return hr+' jam';
     return Math.round(ms/86400000)+' hari';},
   speak:'Sebut',explore:'Explore \u2197',move:'Pindah',
+  tabExport:'Eksport',exportTitle:'Eksport / Pulih',
   helpTitle:'Cara guna',storeTitle:'Di mana data disimpan',
   storeHost:'Storan hos',storeLocal:'Storan pelayar',storeCount:'rekod',
   storeNone:'Persekitaran ini tiada storan \u2014 data hilang bila ditutup. Sila guna URL sendiri atau ikon skrin utama.',
@@ -453,6 +467,7 @@ const I18N={
     const hr=Math.round(ms/3600000);if(hr<24)return hr+' h';
     return Math.round(ms/86400000)+' days';},
   speak:'Speak',explore:'Explore \u2197',move:'Move',
+  tabExport:'Export',exportTitle:'Export / Restore',
   helpTitle:'How to use it',storeTitle:'Where the data lives',
   storeHost:'host storage',storeLocal:'browser storage',storeCount:'entries',
   storeNone:'This environment has no storage \u2014 data disappears when you close it. Use your own URL or the home screen icon.',
@@ -797,6 +812,9 @@ function applyLang(){
   $('tab-review').querySelector('span').textContent=t.tabReview;
   $('tab-active').querySelector('span').textContent=t.tabActive;
   $('tab-archive').querySelector('span').textContent=t.tabArchive;
+  $('tab-export').querySelector('span').textContent=t.tabExport;
+  $('export-title').textContent=t.exportTitle;
+  $('export-close').textContent=t.close;
   $('panel-copy').textContent=t.copy;
   $('panel-close').textContent=t.close;
   $('panel-hint').textContent=t.panelHint;
@@ -1249,6 +1267,10 @@ function openSched(){
   renderSchedFields();
   $('sched-panel').hidden=false;
 }
+$('tab-export').onclick=()=>{$('export-panel').hidden=false};
+$('export-close').onclick=()=>{$('export-panel').hidden=true};
+$('export-panel').addEventListener('click',ev=>{if(ev.target===$('export-panel'))$('export-panel').hidden=true});
+function closeExport(){$('export-panel').hidden=true}
 $('help-btn').onclick=()=>{
   const t=T();
   $('help-title').textContent=t.helpTitle;
@@ -1377,6 +1399,7 @@ function rowsForExport(list){
 }
 function liveEntries(){return entries.filter(e=>!e.deleted)}
 $('x-csv').onclick=()=>{
+  closeExport();
   const live=liveEntries();
   if(!live.length){toast(T().tNothing);return}
   download(toCSV(live),fname('csv'),'text/csv;charset=utf-8');
@@ -1497,6 +1520,7 @@ function buildXLSX(head,rows){
   ]);
 }
 $('x-xls').onclick=()=>{
+  closeExport();
   const live=liveEntries();
   if(!live.length){toast(T().tNothing);return}
   try{
@@ -1668,7 +1692,7 @@ async function mergeIn(list){
   await save();render();
   toast(T().tImported(added,updated));
 }
-$('x-import').onclick=()=>$('file-input').click();
+$('x-import').onclick=()=>{closeExport();$('file-input').click()};
 $('file-input').addEventListener('change',ev=>{
   const f=ev.target.files&&ev.target.files[0];
   if(!f)return;
