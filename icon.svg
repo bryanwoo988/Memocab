@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#152A33"/>
+  <rect x="104" y="120" width="304" height="272" rx="6" fill="#FBFBF7"/>
+  <rect x="104" y="120" width="52" height="272" rx="6" fill="#E3E7E0"/>
+  <line x1="156" y1="120" x2="156" y2="392" stroke="#C9D0C9" stroke-width="4"/>
+  <text x="290" y="252" font-family="Georgia,serif" font-size="112" fill="#152A33" text-anchor="middle">Wd</text>
+  <line x1="196" y1="300" x2="368" y2="300" stroke="#C9D0C9" stroke-width="8"/>
+  <line x1="196" y1="340" x2="312" y2="340" stroke="#1F4FA3" stroke-width="8"/>
+</svg>

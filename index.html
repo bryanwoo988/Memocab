@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wordslip · 生词簿</title>
+<meta name="theme-color" content="#152A33">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="生词簿">
+<style>
+:root{
+  --ink:#152A33;
+  --ink-soft:#40575F;
+  --paper:#EDEFE9;
+  --slip:#FBFBF7;
+  --rule:#C9D0C9;
+  --pen:#1F4FA3;
+  --stamp:#8F9C93;
+  --flag:#E4C55A;
+  --danger:#A8402F;
+  --serif:Georgia,"Songti SC","Noto Serif CJK SC",serif;
+  --sans:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--pen);outline-offset:2px}
+
+header{background:var(--ink);color:var(--paper);padding:14px 18px 0;padding-top:calc(14px + env(safe-area-inset-top,0px))}
+.wrap{max-width:760px;margin:0 auto}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{margin:0;font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:-.01em}
+.brand span{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#93A5A9}
+
+.capture{background:var(--ink);padding:14px 18px 18px}
+.capture .box{background:var(--slip);border-radius:3px;padding:14px;box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:2px;overflow:hidden;margin-bottom:10px}
+.seg button{background:transparent;border:0;padding:5px 14px;color:var(--ink-soft);font-size:13px;letter-spacing:.04em}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--slip)}
+textarea,input[type=text]{width:100%;border:0;border-bottom:1px solid var(--rule);background:transparent;font-family:inherit;font-size:17px;color:var(--ink);padding:6px 0;resize:none}
+textarea:focus,input:focus{outline:none;border-bottom-color:var(--pen)}
+#field-text{font-family:var(--serif);font-size:20px}
+.field-label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--stamp);margin-top:12px}
+.capture .row{display:flex;gap:10px;align-items:center;margin-top:14px}
+.btn{background:var(--ink);color:var(--slip);border:0;border-radius:2px;padding:9px 20px;letter-spacing:.03em}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.hint{font-family:var(--mono);font-size:11px;color:var(--stamp)}
+
+.toolbar{max-width:760px;margin:0 auto;padding:16px 18px 0;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.tabs{display:flex;gap:18px;margin-right:auto}
+.tab{background:none;border:0;padding:0 0 4px;color:var(--ink-soft);font-size:14px;letter-spacing:.03em;border-bottom:2px solid transparent}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--pen)}
+.tab b{font-family:var(--mono);font-weight:400;font-size:11px;color:var(--stamp);margin-left:5px}
+.tab b.hot{color:var(--slip);background:var(--danger);padding:1px 5px;border-radius:8px}
+.search{flex:1 1 160px;border:1px solid var(--rule);background:var(--slip);border-radius:2px;padding:6px 10px;font-size:14px}
+.export{display:flex;gap:8px}
+.ghost{background:transparent;border:1px solid var(--ink);color:var(--ink);border-radius:2px;padding:6px 12px;font-size:13px}
+.ghost:hover{background:var(--ink);color:var(--slip)}
+
+main{max-width:760px;margin:0 auto;padding:16px 18px 60px}
+.slip{display:flex;background:var(--slip);border:1px solid var(--rule);border-radius:2px;margin-bottom:12px;overflow:hidden}
+.spine{flex:0 0 34px;background:#E3E7E0;border-right:1px solid var(--rule);display:flex;align-items:center;justify-content:center}
+.spine time{writing-mode:vertical-rl;transform:rotate(180deg);font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--stamp);padding:10px 0;white-space:nowrap}
+.body{flex:1;padding:12px 14px;min-width:0}
+.term{font-family:var(--serif);font-size:22px;line-height:1.3;word-break:break-word}
+.slip.sentence .term{font-size:18px;font-style:italic;line-height:1.55}
+.meaning{margin-top:6px;color:var(--ink-soft);font-size:15px;word-break:break-word}
+.meaning.empty{color:var(--stamp);font-size:13px;border-bottom:1px dashed var(--rule);display:inline-block;padding-bottom:2px}
+.acts{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.acts button{background:none;border:0;padding:0;color:var(--pen);font-size:12px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.acts button.del{color:var(--danger)}
+.sched{font-family:var(--mono);font-size:11px;color:var(--stamp);letter-spacing:.06em;margin-left:auto}
+.flag{display:inline-block;background:var(--flag);color:#3A3005;font-family:var(--mono);font-size:9px;letter-spacing:.14em;padding:2px 6px;border-radius:2px;margin-left:8px;vertical-align:3px}
+.edit textarea{font-size:15px;font-family:var(--sans)}
+.edit .row{display:flex;gap:12px;margin-top:10px;align-items:center}
+.empty-state{border:1px dashed var(--rule);border-radius:2px;padding:34px 20px;text-align:center;color:var(--ink-soft)}
+.empty-state p{margin:0 0 6px;font-family:var(--serif);font-size:18px}
+.empty-state small{font-family:var(--mono);font-size:11px;color:var(--stamp);letter-spacing:.06em}
+mark{background:var(--flag);color:inherit}
+
+/* review */
+.drill{background:var(--slip);border:1px solid var(--rule);border-radius:2px;padding:26px 20px 20px;text-align:center}
+.drill .count{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--stamp);text-transform:uppercase}
+.drill .front{font-family:var(--serif);font-size:32px;line-height:1.3;margin:22px 0;word-break:break-word}
+.drill.sentence .front{font-size:22px;font-style:italic;line-height:1.55}
+.drill .back{border-top:1px solid var(--rule);padding-top:16px;margin-top:16px;font-size:17px;color:var(--ink-soft);text-align:left;word-break:break-word}
+.drill .back textarea{font-size:16px}
+.grades{display:flex;gap:8px;margin-top:20px}
+.grades button{flex:1;border:1px solid var(--rule);background:transparent;border-radius:2px;padding:10px 4px;color:var(--ink);line-height:1.3}
+.grades button:hover{border-color:var(--ink)}
+.grades small{display:block;font-family:var(--mono);font-size:10px;color:var(--stamp);margin-top:3px;letter-spacing:.06em}
+.reveal{width:100%;background:var(--ink);color:var(--slip);border:0;border-radius:2px;padding:11px;margin-top:6px}
+.drill-note{font-family:var(--mono);font-size:11px;color:var(--stamp);text-align:center;margin-top:14px;letter-spacing:.05em}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--slip);padding:9px 16px;border-radius:2px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
+.toast.on{opacity:1}
+@media (max-width:560px){
+  .spine{flex-basis:26px}.spine time{font-size:9px}.term{font-size:20px}
+  .drill .front{font-size:26px}
+  .grades{flex-direction:column}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header><div class="wrap brand"><h1>生词簿</h1><span>Wordslip</span></div></header>
+
+<div class="capture">
+  <div class="wrap">
+    <div class="box">
+      <div class="seg" role="group" aria-label="类型">
+        <button type="button" id="t-word" aria-pressed="true">单词</button>
+        <button type="button" id="t-sentence" aria-pressed="false">句子</button>
+      </div>
+      <label class="field-label" for="field-text">单词 / 句子</label>
+      <textarea id="field-text" rows="1" placeholder="写下你今天学到的"></textarea>
+      <label class="field-label" for="field-meaning">意思（可以不填，以后再补）</label>
+      <textarea id="field-meaning" rows="1" placeholder="解释、翻译、例句…"></textarea>
+      <div class="row">
+        <button class="btn" id="save" disabled>记录</button>
+        <span class="hint" id="clock"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="tabs" role="tablist">
+    <button class="tab" id="tab-review" role="tab" aria-selected="false">复习<b id="c-due">0</b></button>
+    <button class="tab" id="tab-active" role="tab" aria-selected="true">在用<b id="c-active">0</b></button>
+    <button class="tab" id="tab-archive" role="tab" aria-selected="false">归档<b id="c-arch">0</b></button>
+  </div>
+  <input class="search" id="search" type="text" placeholder="搜索…" aria-label="搜索">
+  <div class="export">
+    <button class="ghost" id="x-xls">导出 Excel</button>
+    <button class="ghost" id="x-csv">导出 CSV</button>
+  </div>
+</div>
+
+<main id="list"></main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const KEY='wordslip:entries';
+const DAY=86400000;
+let entries=[], view='active', manualType=false, type='word', editing=null;
+let queue=[], revealed=false;
+
+/* ---------- storage ---------- */
+async function load(){
+  let raw=[];
+  if(window.storage){
+    try{const r=await window.storage.get(KEY);raw=r?JSON.parse(r.value):[]}catch(e){raw=[]}
+  }else{
+    try{const v=localStorage.getItem(KEY);raw=v?JSON.parse(v):[]}catch(e){raw=[]}
+  }
+  return raw.map(normalize);
+}
+async function save(){
+  if(window.storage){
+    try{await window.storage.set(KEY,JSON.stringify(entries));return}catch(e){}
+  }
+  try{localStorage.setItem(KEY,JSON.stringify(entries))}catch(e){toast('保存失败，浏览器不允许存储')}
+}
+/* older entries saved before the review feature get default scheduling fields */
+function normalize(e){
+  if(e.reps===undefined)e.reps=0;
+  if(e.ease===undefined)e.ease=2.5;
+  if(e.interval===undefined)e.interval=0;
+  if(e.reviewCount===undefined)e.reviewCount=0;
+  if(e.lastReviewed===undefined)e.lastReviewed=null;
+  if(!e.due)e.due=e.created;
+  return e;
+}
+
+/* ---------- helpers ---------- */
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+function stamp(iso){const d=new Date(iso);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())}
+function dateOnly(iso){const d=new Date(iso);return pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function hl(s,q){const t=esc(s);if(!q)return t;return t.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark>$1</mark>')}
+let toastTimer;
+function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('on'),1900)}
+function autoGrow(el){el.style.height='auto';el.style.height=el.scrollHeight+'px'}
+function isDue(e){return !e.archived && new Date(e.due).getTime()<=Date.now()}
+
+/* ---------- SM-2 scheduling ----------
+   Interval and ease follow the SuperMemo-2 algorithm (Wozniak 1987),
+   the same math Anki's older scheduler is built on. Three grades map to
+   quality 1 / 3 / 5.                                                     */
+function schedule(e,q){
+  let ease=e.ease+(0.1-(5-q)*(0.08+(5-q)*0.02));
+  if(ease<1.3)ease=1.3;
+  let reps=e.reps,interval;
+  if(q<3){
+    reps=0;interval=0;
+    e.due=new Date(Date.now()+10*60000).toISOString();  // 10 分钟后再来一次
+  }else{
+    reps+=1;
+    if(reps===1)interval=1;
+    else if(reps===2)interval=6;
+    else interval=Math.max(1,Math.round((e.interval||1)*ease));
+    e.due=new Date(Date.now()+interval*DAY).toISOString();
+  }
+  e.ease=Math.round(ease*100)/100;
+  e.reps=reps;
+  e.interval=interval;
+  e.reviewCount+=1;
+  e.lastReviewed=new Date().toISOString();
+  return interval;
+}
+function preview(e,q){return schedule(Object.assign({},e),q)}
+function gapLabel(days){return days===0?'10 分钟':days===1?'1 天':days+' 天'}
+
+/* ---------- capture ---------- */
+function setType(t){type=t;$('t-word').setAttribute('aria-pressed',t==='word');$('t-sentence').setAttribute('aria-pressed',t==='sentence')}
+$('t-word').onclick=()=>{manualType=true;setType('word')};
+$('t-sentence').onclick=()=>{manualType=true;setType('sentence')};
+$('field-text').addEventListener('input',e=>{
+  autoGrow(e.target);
+  $('save').disabled=!e.target.value.trim();
+  if(!manualType){
+    const words=e.target.value.trim().split(/\s+/).filter(Boolean).length;
+    setType(words>=4?'sentence':'word');
+  }
+});
+$('field-meaning').addEventListener('input',e=>autoGrow(e.target));
+$('field-text').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();add()}});
+
+async function add(){
+  const text=$('field-text').value.trim();
+  if(!text)return;
+  const now=new Date().toISOString();
+  entries.unshift(normalize({
+    id:Date.now()+'-'+Math.random().toString(36).slice(2,7),
+    type:type,text:text,meaning:$('field-meaning').value.trim(),
+    created:now,archived:false,archivedAt:null,due:now
+  }));
+  await save();
+  $('field-text').value='';$('field-meaning').value='';
+  autoGrow($('field-text'));autoGrow($('field-meaning'));
+  $('save').disabled=true;manualType=false;setType('word');
+  view='active';syncTabs();render();
+  toast('已记录 · '+stamp(now));
+  $('field-text').focus();
+}
+$('save').onclick=add;
+
+/* ---------- tabs ---------- */
+function syncTabs(){
+  $('tab-review').setAttribute('aria-selected',view==='review');
+  $('tab-active').setAttribute('aria-selected',view==='active');
+  $('tab-archive').setAttribute('aria-selected',view==='archive');
+}
+$('tab-review').onclick=()=>{view='review';editing=null;buildQueue();syncTabs();render()};
+$('tab-active').onclick=()=>{view='active';editing=null;syncTabs();render()};
+$('tab-archive').onclick=()=>{view='archive';editing=null;syncTabs();render()};
+$('search').addEventListener('input',()=>{if(view==='review'){view='active';syncTabs()}render()});
+
+function buildQueue(){
+  queue=entries.filter(isDue).sort((a,b)=>new Date(a.due)-new Date(b.due)).map(e=>e.id);
+  revealed=false;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const dueCount=entries.filter(isDue).length;
+  $('c-active').textContent=entries.filter(e=>!e.archived).length;
+  $('c-arch').textContent=entries.filter(e=>e.archived).length;
+  const badge=$('c-due');badge.textContent=dueCount;badge.className=dueCount?'hot':'';
+  if(view==='review'){renderReview();return}
+  renderList();
+}
+
+function renderReview(){
+  const list=$('list');
+  const e=entries.find(x=>x.id===queue[0]);
+  if(!e||!isDue(e)){
+    if(queue.length){queue.shift();return renderReview()}
+    const next=entries.filter(x=>!x.archived).sort((a,b)=>new Date(a.due)-new Date(b.due))[0];
+    list.innerHTML='<div class="empty-state"><p>'+(entries.length?'现在没有要复习的。':'还没有记录。')+'</p><small>'+
+      (next?'下一次：'+stamp(next.due):'先记几个词再回来')+'</small></div>';
+    return;
+  }
+  const back=e.meaning
+    ? '<div class="back">'+esc(e.meaning)+'</div>'
+    : '<div class="back"><label class="field-label" for="drill-meaning">这条还没写意思，现在补上</label><textarea id="drill-meaning" rows="1" placeholder="解释、翻译、例句…"></textarea></div>';
+  list.innerHTML='<div class="drill '+e.type+'">'+
+    '<div class="count">还剩 '+queue.length+' 条 · 复习过 '+e.reviewCount+' 次</div>'+
+    '<div class="front">'+esc(e.text)+'</div>'+
+    (revealed
+      ? back+'<div class="grades">'+
+          '<button data-q="1">忘了<small>'+gapLabel(preview(e,1))+'</small></button>'+
+          '<button data-q="3">想一下才记得<small>'+gapLabel(preview(e,3))+'</small></button>'+
+          '<button data-q="5">马上记得<small>'+gapLabel(preview(e,5))+'</small></button>'+
+        '</div>'
+      : '<button class="reveal" id="do-reveal">看意思</button>')+
+    '</div>'+
+    '<div class="drill-note">'+(revealed?'按 1 / 2 / 3 打分':'按空白键翻开')+'</div>';
+  const ta=$('drill-meaning');if(ta)autoGrow(ta);
+}
+
+function renderList(){
+  const q=$('search').value.trim();
+  const ql=q.toLowerCase();
+  const rows=entries.filter(e=>e.archived===(view==='archive'))
+    .filter(e=>!ql||e.text.toLowerCase().includes(ql)||(e.meaning||'').toLowerCase().includes(ql));
+  const list=$('list');
+  if(!rows.length){
+    list.innerHTML='<div class="empty-state"><p>'+
+      (q?'没有匹配的记录。':view==='archive'?'归档还是空的。':'还没有记录。')+'</p><small>'+
+      (q?'换个词再搜':view==='archive'?'看完的词条可以收进这里':'在上面写下第一个词')+'</small></div>';
+    return;
+  }
+  list.innerHTML=rows.map(e=>{
+    if(editing===e.id){
+      return '<article class="slip '+e.type+'"><div class="spine"><time>'+stamp(e.created)+'</time></div>'+
+        '<div class="body edit">'+
+        '<textarea class="e-text" rows="1">'+esc(e.text)+'</textarea>'+
+        '<label class="field-label">意思</label>'+
+        '<textarea class="e-meaning" rows="1" placeholder="解释、翻译、例句…">'+esc(e.meaning||'')+'</textarea>'+
+        '<div class="row"><button class="btn" data-act="save" data-id="'+e.id+'">保存</button>'+
+        '<button class="ghost" data-act="cancel" data-id="'+e.id+'">取消</button>'+
+        (e.reviewCount?'<button class="ghost" data-act="reset" data-id="'+e.id+'">重置复习进度</button>':'')+
+        '</div></div></article>';
+    }
+    const meaning=e.meaning
+      ? '<div class="meaning">'+hl(e.meaning,q)+'</div>'
+      : '<div class="meaning empty">还没写意思 — 点「编辑」补上</div>';
+    const sched=e.archived?'':'<span class="sched">'+(isDue(e)?'该复习了':'下次 '+dateOnly(e.due))+
+      (e.reviewCount?' · '+e.reviewCount+'次':'')+'</span>';
+    return '<article class="slip '+e.type+'">'+
+      '<div class="spine"><time>'+stamp(e.created)+'</time></div>'+
+      '<div class="body">'+
+      '<div class="term">'+hl(e.text,q)+(e.archived?'<span class="flag">已归档</span>':'')+'</div>'+
+      meaning+
+      '<div class="acts">'+
+        '<button data-act="edit" data-id="'+e.id+'">编辑</button>'+
+        '<button data-act="'+(e.archived?'restore':'archive')+'" data-id="'+e.id+'">'+(e.archived?'取回':'归档')+'</button>'+
+        '<button class="del" data-act="delete" data-id="'+e.id+'">删除</button>'+
+        sched+
+      '</div></div></article>';
+  }).join('');
+  list.querySelectorAll('textarea').forEach(autoGrow);
+}
+
+/* ---------- interactions ---------- */
+$('list').addEventListener('click',async ev=>{
+  if(ev.target.closest('#do-reveal')){revealed=true;render();return}
+  const g=ev.target.closest('.grades button');
+  if(g){await grade(parseInt(g.dataset.q,10));return}
+  const b=ev.target.closest('button[data-act]');
+  if(!b)return;
+  const e=entries.find(x=>x.id===b.dataset.id);
+  if(!e)return;
+  const act=b.dataset.act;
+  if(act==='edit'){editing=e.id;render();return}
+  if(act==='cancel'){editing=null;render();return}
+  if(act==='save'){
+    const card=b.closest('.body');
+    const t=card.querySelector('.e-text').value.trim();
+    if(!t){toast('内容不能空着');return}
+    e.text=t;e.meaning=card.querySelector('.e-meaning').value.trim();
+    editing=null;await save();render();toast('已更新');return;
+  }
+  if(act==='reset'){
+    e.reps=0;e.ease=2.5;e.interval=0;e.reviewCount=0;e.lastReviewed=null;e.due=new Date().toISOString();
+    editing=null;await save();render();toast('复习进度已重置');return;
+  }
+  if(act==='archive'){e.archived=true;e.archivedAt=new Date().toISOString();await save();render();toast('已归档');return}
+  if(act==='restore'){e.archived=false;e.archivedAt=null;await save();render();toast('已取回');return}
+  if(act==='delete'){
+    if(!confirm('删除「'+e.text.slice(0,40)+'」？删掉就找不回来了。'))return;
+    entries=entries.filter(x=>x.id!==e.id);await save();render();toast('已删除');
+  }
+});
+
+async function grade(q){
+  const e=entries.find(x=>x.id===queue[0]);
+  if(!e)return;
+  const ta=$('drill-meaning');
+  if(ta&&ta.value.trim())e.meaning=ta.value.trim();
+  const days=schedule(e,q);
+  queue.shift();
+  if(q<3)queue.push(e.id);           // 忘了的排到这一轮最后再来一次
+  revealed=false;
+  await save();render();
+  toast('下次复习：'+gapLabel(days));
+}
+
+document.addEventListener('keydown',ev=>{
+  if(view!=='review')return;
+  const tag=(ev.target.tagName||'').toLowerCase();
+  if(tag==='textarea'||tag==='input')return;
+  if(!revealed&&(ev.code==='Space'||ev.key==='Enter')){ev.preventDefault();revealed=true;render();return}
+  if(revealed&&['1','2','3'].includes(ev.key)){ev.preventDefault();grade({'1':1,'2':3,'3':5}[ev.key])}
+});
+
+/* ---------- export ---------- */
+function fname(ext){const d=new Date();return 'wordslip-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'.'+ext}
+function download(content,name,mime){
+  try{
+    const blob=new Blob([content],{type:mime});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=name;document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},500);
+    toast('已导出 '+name);
+  }catch(err){toast('浏览器阻止了下载')}
+}
+const HEAD=['类型','内容','意思','记录时间','状态','归档时间','复习次数','下次复习','间隔(天)','熟练度'];
+function rowsForExport(){
+  return [...entries].sort((a,b)=>a.created<b.created?-1:1).map(e=>[
+    e.type==='word'?'单词':'句子',
+    e.text,e.meaning||'',stamp(e.created),
+    e.archived?'已归档':'在用',
+    e.archivedAt?stamp(e.archivedAt):'',
+    e.reviewCount,
+    e.archived?'':stamp(e.due),
+    e.interval,e.ease
+  ]);
+}
+$('x-csv').onclick=()=>{
+  if(!entries.length){toast('还没有内容可以导出');return}
+  const qt=v=>'"'+String(v).replace(/"/g,'""')+'"';
+  const csv='\uFEFF'+[HEAD,...rowsForExport()].map(r=>r.map(qt).join(',')).join('\r\n');
+  download(csv,fname('csv'),'text/csv;charset=utf-8');
+};
+$('x-xls').onclick=()=>{
+  if(!entries.length){toast('还没有内容可以导出');return}
+  const cell=v=>typeof v==='number'
+    ? '<Cell><Data ss:Type="Number">'+v+'</Data></Cell>'
+    : '<Cell><Data ss:Type="String">'+esc(v)+'</Data></Cell>';
+  const head='<Row>'+HEAD.map(h=>'<Cell ss:StyleID="h"><Data ss:Type="String">'+esc(h)+'</Data></Cell>').join('')+'</Row>';
+  const body=rowsForExport().map(r=>'<Row>'+r.map(cell).join('')+'</Row>').join('');
+  const xml='<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n'+
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'+
+    '<Styles><Style ss:ID="h"><Font ss:Bold="1"/><Interior ss:Color="#EDEFE9" ss:Pattern="Solid"/></Style></Styles>'+
+    '<Worksheet ss:Name="Wordslip"><Table>'+
+    '<Column ss:Width="45"/><Column ss:Width="170"/><Column ss:Width="240"/><Column ss:Width="105"/><Column ss:Width="55"/><Column ss:Width="105"/><Column ss:Width="60"/><Column ss:Width="105"/><Column ss:Width="60"/><Column ss:Width="60"/>'+
+    head+body+'</Table></Worksheet></Workbook>';
+  download(xml,fname('xls'),'application/vnd.ms-excel;charset=utf-8');
+};
+
+/* ---------- boot ---------- */
+(async()=>{
+  entries=await load();
+  render();
+  const tick=()=>{$('clock').textContent=stamp(new Date().toISOString())};
+  tick();setInterval(tick,20000);
+  if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  }
+})();
+</script>
+</body>
+</html>
